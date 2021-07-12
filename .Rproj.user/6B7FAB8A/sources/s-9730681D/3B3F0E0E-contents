@@ -1,0 +1,107 @@
+---
+title: 'Network Equating Trials'
+date: "`r Sys.Date()`"
+output:
+  github_document:
+    toc: yes
+    toc_depth: 4
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.retina = 4)
+```
+
+
+```{r, include=FALSE}
+# Libraries
+pacman::p_load(tidyverse, tidygraph, igraph)
+source("klint.R")
+```
+
+
+### Graph
+ 
+```{r}
+nodes <-
+  df %>% 
+  count(t1, t2) %>% 
+  pivot_longer(cols = -n) %>% 
+  distinct(value) %>%
+  arrange(value)
+
+edges <-
+  df %>% 
+  count(t1, t2, name = "weight")
+
+G <-
+  graph_from_data_frame(edges, nodes, directed = FALSE) %>% 
+  as_tbl_graph()
+
+G
+```
+
+
+### Stochastic adjacency matrix
+
+```{r}
+m <- as_adj(G, attr = "weight", type = "both", sparse = FALSE)
+m_scaled <- m/rowSums(m)
+```
+
+
+### Left eigen-vector with eigenvalue 1
+
+```{r}
+eigen_scaled <- (eigen(t(m_scaled))$vectors)[,1] / sum((eigen(t(m_scaled))$vectors)[,1])
+eigen_scaled
+```
+
+### Thetas and Comparison
+
+```{r, fig.asp=1}
+saurabh_thetas <- (mats$delta %*% eigen_scaled)[,1]
+
+saurabh_thetas %>% 
+  as_tibble() %>% 
+  cbind(est[nrow(est),], theta) %>%
+  transmute(
+    ben = est[nrow(est),],
+    klint = theta,
+    saurabh = scale(value) %>% as.vector(),
+  ) %>% 
+  pivot_longer(cols = c(ben, klint, saurabh), values_to = "theta") %>% 
+  ggplot(aes(theta, group = name, fill = name)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(aes(xintercept = median(theta)), linetype="dashed") +
+  facet_grid(vars(name)) +
+  hrbrthemes::theme_ipsum() +
+  labs(fill = "")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
